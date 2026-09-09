@@ -14,6 +14,7 @@ let inflight = null;      // AbortController
 let lastAnswer = '';
 let clearArmedAt = 0;     // Ctrl+K の1回目
 const CLEAR_WINDOW_MS = 2500;
+let settingsOpen = false; // 設定パネルを開いている間はブラインド入力を止める
 
 // --- 状態表示 -------------------------------------------------------------
 
@@ -255,10 +256,11 @@ function init() {
 
   keys.attach({
     onFirstKey: () => { if (!started) start(); },
-    onChar: (ch, kind) => { buffer.append(ch); audio.key(kind); },
-    onBackspace: () => { if (buffer.backspace()) audio.key('backspace'); else audio.key('punct'); },
-    onNewline: () => { buffer.append('\n'); audio.key('enter'); },
+    onChar: (ch, kind) => { if (settingsOpen) return; buffer.append(ch); audio.key(kind); },
+    onBackspace: () => { if (settingsOpen) return; if (buffer.backspace()) audio.key('backspace'); else audio.key('punct'); },
+    onNewline: () => { if (settingsOpen) return; buffer.append('\n'); audio.key('enter'); },
     onCommand: (name) => {
+      if (settingsOpen) return;
       // 打鍵を始めたら読み上げは止める、の例外：読み上げ系コマンド自身は止めない
       if (!['repeat', 'tail', 'help', 'stop'].includes(name)) speech.stop();
       COMMANDS[name]?.();
@@ -279,9 +281,34 @@ function init() {
 
 function wireSettings() {
   const panel = $('settings');
+
+  const openSettings = () => {
+    if (settingsOpen) return;
+    settingsOpen = true;
+    panel.hidden = false;
+  };
+  const closeSettings = () => {
+    if (!settingsOpen) return;
+    settingsOpen = false;
+    panel.hidden = true;
+    document.activeElement?.blur?.();   // 入力欄にフォーカスを残さない
+    $('settings-toggle').blur();
+    audio.cue.stop();
+    log('設定を閉じました');
+  };
+
   $('settings-toggle').addEventListener('click', (e) => {
-    panel.hidden = !panel.hidden;
-    e.currentTarget.blur();   // フォーカスを残さない
+    if (settingsOpen) closeSettings(); else openSettings();
+    e.currentTarget.blur();
+  });
+  $('settings-close').addEventListener('click', closeSettings);
+
+  // Esc で戻る。入力中の値も取りこぼさないよう change を発火させてから閉じる
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !settingsOpen) return;
+    e.preventDefault();
+    document.activeElement?.dispatchEvent?.(new Event('change', { bubbles: true }));
+    closeSettings();
   });
 
   const apikey = $('apikey');

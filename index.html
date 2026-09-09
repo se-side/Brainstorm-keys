@@ -64,8 +64,20 @@
 
   #settings {
     position: absolute; inset: 0; z-index: 5;
-    background: var(--bg); overflow-y: auto; padding: 20px 16px 40px;
+    background: var(--bg); overflow-y: auto;
     -webkit-user-select: text; user-select: text;
+  }
+  #settings-body { padding: 4px 16px 40px; }
+  #settings-header {
+    position: sticky; top: 0; z-index: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; margin-bottom: 4px;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+  }
+  #settings-header strong { font-size: 15px; font-weight: 600; }
+  #settings-close {
+    background: none; border: 1px solid var(--line); color: var(--fg);
+    border-radius: 8px; padding: 6px 14px; font-size: 14px;
   }
   #settings h2 { font-size: 15px; margin: 24px 0 8px; color: var(--warm); font-weight: 600; }
   #settings h2:first-child { margin-top: 0; }
@@ -111,6 +123,11 @@
 </main>
 
 <section id="settings" hidden>
+  <div id="settings-header">
+    <strong>設定</strong>
+    <button id="settings-close" type="button">戻る</button>
+  </div>
+  <div id="settings-body">
   <h2>Gemini</h2>
   <label for="apikey">API キー（この端末にのみ保存されます）</label>
   <input id="apikey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza...">
@@ -149,6 +166,7 @@
   <button id="export" type="button">全文をコピー</button>
 
   <p style="margin-top:24px">キーボードは英字（ABC）にしてください。日本語 IME はオフのまま、ローマ字でそのまま打ちます。</p>
+  </div>
 </section>
 
 <div id="overlay">
