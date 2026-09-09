@@ -84,8 +84,12 @@ export async function streamGenerate({
     let json;
     try { json = JSON.parse(raw); } catch { return; }
     if (json.error) throw new Error(json.error.message || 'Gemini エラー');
-    const parts = json?.candidates?.[0]?.content?.parts || [];
+    const candidate = json?.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
     for (const p of parts) {
+      // thought: true は「思考の過程」であって最終回答ではない。
+      // 再試行で thinking を有効化した場合に混ざってくるので、必ず除外する。
+      if (p.thought) continue;
       if (typeof p.text === 'string' && p.text) {
         full += p.text;
         onDelta?.(p.text);

@@ -151,7 +151,7 @@ async function run(modeName) {
       say('整えました');
       setState('idle');
     }
-    log(`${mode.label}: ${answer.length}字を受信`);
+    log(`${mode.label}: ${answer.length}字を受信 — ${answer.trim().slice(0, 40)}`);
   } catch (e) {
     if (e.name === 'AbortError' || ctrl.signal.aborted) { log('中断しました'); return; }
     speaker?.discard();
