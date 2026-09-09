@@ -230,8 +230,9 @@ async function start() {
     err('オーディオを開始できません:', e.message);
   }
 
-  speech.loadVoices();
-  setTimeout(() => { $('voice').textContent = speech.voiceName(); }, 400);
+  const voiceFound = await speech.loadVoices();
+  $('voice').textContent = speech.voiceName();
+  if (!voiceFound) warn('日本語の読み上げ音声が見つかりません。英語などの声で読まれる可能性があります');
 
   requestWakeLock();
   say('準備できました');
@@ -250,6 +251,9 @@ function init() {
   speech.onState((isSpeaking) => {
     if (isSpeaking) setState('speaking');
     else if (!inflight && state === 'speaking') setState('idle');
+  });
+  speech.onVoiceMissing(() => {
+    warn('日本語音声が端末に無いようです。設定 > アクセシビリティ > 読み上げコンテンツ > 声 で日本語を追加してください');
   });
 
   if (!speech.available()) warn('この環境では読み上げが使えません');

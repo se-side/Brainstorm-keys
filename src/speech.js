@@ -2,11 +2,15 @@
 
 let voice = null;
 let voicesLoaded = false;
+let pollTimer = null;
 
 export const settings = { rate: 1.15, pitch: 1.0, volume: 1.0 };
 
 let onStateChange = () => {};
 export function onState(fn) { onStateChange = fn; }
+
+let voiceMissingHandler = () => {};
+export function onVoiceMissing(fn) { voiceMissingHandler = fn; }
 
 let speaking = 0; // 発話中のutterance数
 
@@ -21,15 +25,33 @@ function pickVoice() {
   return ja.find(v => /kyoko/i.test(v.name)) || ja[0] || null;
 }
 
+function tryPickVoice() {
+  const v = pickVoice();
+  if (v) { voice = v; voicesLoaded = true; return true; }
+  return false;
+}
+
+// iOS Safari は起動直後 getVoices() が空を返しやすく、onvoiceschanged も
+// 確実には発火しない。見つかるまでポーリングし、Promise で待てるようにする。
 export function loadVoices() {
-  if (!available()) return;
-  voice = pickVoice();
-  voicesLoaded = !!voice;
-  // iOSでは voices が非同期に来るので、変化したら取り直す
-  speechSynthesis.onvoiceschanged = () => {
-    voice = pickVoice();
-    voicesLoaded = !!voice;
-  };
+  return new Promise((resolve) => {
+    if (!available()) { resolve(false); return; }
+    if (tryPickVoice()) { resolve(true); return; }
+
+    speechSynthesis.onvoiceschanged = () => { tryPickVoice(); };
+
+    clearInterval(pollTimer);
+    let attempts = 0;
+    pollTimer = setInterval(() => {
+      attempts++;
+      const found = tryPickVoice();
+      if (found || attempts >= 20) {   // 最大 4秒（200ms × 20）
+        clearInterval(pollTimer);
+        if (!found) voiceMissingHandler();  // 日本語音声が端末に無い可能性
+        resolve(found);
+      }
+    }, 200);
+  });
 }
 
 export function voiceName() { return voice ? `${voice.name} (${voice.lang})` : '未取得'; }
@@ -38,11 +60,17 @@ export function speak(text) {
   if (!available()) return;
   const t = String(text || '').trim();
   if (!t) return;
-  if (!voicesLoaded) loadVoices();
+  if (!voicesLoaded) tryPickVoice();
 
   const u = new SpeechSynthesisUtterance(t);
-  if (voice) u.voice = voice;
-  u.lang = voice ? voice.lang : 'ja-JP';
+  // voice を明示指定しないと、lang を設定しても iOS が端末の既定言語
+  // （多くは英語）の音声で読み上げてしまうことがある。
+  if (voice) {
+    u.voice = voice;
+    u.lang = voice.lang;
+  } else {
+    u.lang = 'ja-JP';
+  }
   u.rate = settings.rate;
   u.pitch = settings.pitch;
   u.volume = settings.volume;
